@@ -19,7 +19,7 @@ import asyncio
 from datetime import datetime, timezone, timedelta
 from telegram import (
     Update, InlineKeyboardButton, InlineKeyboardMarkup,
-    LabeledPrice, StarTransaction,
+    LabeledPrice,
 )
 from telegram.ext import (
     Application, CommandHandler, CallbackQueryHandler,
