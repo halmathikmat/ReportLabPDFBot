@@ -46,7 +46,7 @@ logger = logging.getLogger(__name__)
     ITEM_NAME, ITEM_UNIT, ITEM_QTY, ITEM_PRICE, CONFIRM_ITEM, ADDING_ITEMS,
     INV_NOTES, REVIEW_INVOICE,
     # Admin states
-    ADMIN_MENU, ADMIN_DISC_STARS, ADMIN_DISC_PCT, ADMIN_DISC_HOURS,
+    ADMIN_MENU, ADMIN_DISC_STARS, ADMIN_DISC_HOURS,
     ADMIN_BROADCAST_MSG,
 ) = range(32)
 
@@ -968,7 +968,10 @@ async def cancel(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 # ─────────────────────────────────────────────────────────────────────────────
 
 def main():
-    from config import BOT_TOKEN
+    import os
+    BOT_TOKEN = os.environ.get("BOT_TOKEN", "").strip()
+    if not BOT_TOKEN:
+        raise RuntimeError("BOT_TOKEN environment variable is not set!")
     app = Application.builder().token(BOT_TOKEN).build()
 
     conv = ConversationHandler(
