@@ -1,0 +1,20 @@
+app = "invoice-bot"        # change this to your unique app name
+primary_region = "ams"
+
+[build]
+
+[env]
+  PYTHONUNBUFFERED = "1"
+
+[processes]
+  app = "python bot.py"
+
+[[mounts]]
+  source      = "invoice_bot_data"
+  destination = "/app/data"
+
+[checks]
+  [checks.alive]
+    type     = "tcp"
+    interval = "30s"
+    timeout  = "5s"
