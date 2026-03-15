@@ -26,7 +26,7 @@ from telegram.ext import (
     MessageHandler, ConversationHandler, ContextTypes,
     PreCheckoutQueryHandler, filters,
 )
-from pdf_generator import generate_invoice_pdf, PAGE_SIZE_LABELS
+from pdf_generator import generate_invoice_pdf, PAGE_SIZE_LABELS, PDF_STYLES
 from database import Database, FREE_LIMIT
 
 logging.basicConfig(
@@ -726,33 +726,22 @@ async def inv_client_phone(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     count  = db.get_user_invoice_count(uid) + 1
     prefix = "INV" if ctx.user_data["invoice"]["type"]=="Invoice" else "REC"
     auto   = f"{prefix}-{datetime.now().year}-{count:04d}"
-    ctx.user_data["invoice"]["_auto_num"] = auto
-    await update.message.reply_text(
-        f"🔢 Invoice number\n(suggested: `{auto}` — send it or type your own):",
-        parse_mode="Markdown",
-    )
-    return INV_NUMBER
-
-async def inv_number(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    v = update.message.text.strip()
-    ctx.user_data["invoice"]["number"] = v or ctx.user_data["invoice"].get("_auto_num","001")
-    today = datetime.now().strftime("%Y-%m-%d")
-    await update.message.reply_text(
-        f"📅 Issue date\n(suggested: `{today}`):", parse_mode="Markdown"
-    )
-    return INV_DATE
-
-async def inv_date(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    v = update.message.text.strip()
-    ctx.user_data["invoice"]["date"] = v or datetime.now().strftime("%Y-%m-%d")
+    # Auto-set invoice number and date, skip asking
+    ctx.user_data["invoice"]["number"] = auto
+    ctx.user_data["invoice"]["date"]   = datetime.now().strftime("%Y-%m-%d")
     if ctx.user_data["invoice"]["type"] == "Receipt":
         ctx.user_data["invoice"]["due_date"] = ctx.user_data["invoice"]["date"]
         return await _ask_currency(update, ctx)
-    await update.message.reply_text("📅 Payment due date (e.g. 2025-04-30):")
+    await update.message.reply_text("📅 Payment due date (e.g. 2025-04-30, or 'skip' for same as issue date):")
     return INV_DUE_DATE
 
+async def inv_due_date_or_skip(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    # kept for compatibility — not used in new flow
+    pass
+
 async def inv_due_date(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    ctx.user_data["invoice"]["due_date"] = update.message.text.strip()
+    v = update.message.text.strip()
+    ctx.user_data["invoice"]["due_date"] = ctx.user_data["invoice"]["date"] if v.lower()=="skip" else v
     return await _ask_currency(update, ctx)
 
 async def _ask_currency(update, ctx):
@@ -793,8 +782,29 @@ async def inv_page_size_cb(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     key = query.data.split("_",1)[1]
     ctx.user_data["invoice"]["page_size"] = key
+    cur_style = ctx.user_data["invoice"].get("pdf_style","classic")
+    style_icons = {"classic":"🔵","dark":"⚫","minimal":"⚪","elegant":"🟢"}
+    btns = [
+        [InlineKeyboardButton(
+            f"{'✅ ' if k==cur_style else ''}{style_icons.get(k,'')} {v}",
+            callback_data=f"pdfstyle_{k}"
+        )]
+        for k,v in PDF_STYLES.items()
+    ]
     await query.edit_message_text(
-        f"📐 Page: *{key}*\n\n💸 Tax rate % (e.g. 18, or 0):",
+        f"📐 Page: *{key}*\n\n🎨 *Choose PDF style:*",
+        parse_mode="Markdown",
+        reply_markup=InlineKeyboardMarkup(btns),
+    )
+    return INV_TAX_RATE
+
+async def inv_pdf_style_cb(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    key = query.data.split("_",1)[1]
+    ctx.user_data["invoice"]["pdf_style"] = key
+    await query.edit_message_text(
+        f"🎨 Style: *{PDF_STYLES.get(key,key)}*\n\n💸 Tax rate % (e.g. 18, or 0):",
         parse_mode="Markdown",
     )
     return INV_TAX_RATE
@@ -1010,12 +1020,12 @@ def main():
             INV_CLIENT_ADDRESS: [MessageHandler(filters.TEXT & ~filters.COMMAND, inv_client_address)],
             INV_CLIENT_EMAIL:   [MessageHandler(filters.TEXT & ~filters.COMMAND, inv_client_email)],
             INV_CLIENT_PHONE:   [MessageHandler(filters.TEXT & ~filters.COMMAND, inv_client_phone)],
-            INV_NUMBER:         [MessageHandler(filters.TEXT & ~filters.COMMAND, inv_number)],
-            INV_DATE:           [MessageHandler(filters.TEXT & ~filters.COMMAND, inv_date)],
             INV_DUE_DATE:       [MessageHandler(filters.TEXT & ~filters.COMMAND, inv_due_date)],
             INV_CURRENCY:       [CallbackQueryHandler(inv_currency_cb,    pattern="^cur_")],
-            INV_PAGE_SIZE:      [CallbackQueryHandler(inv_page_size_cb,   pattern="^ps_")],
-            INV_TAX_RATE:       [MessageHandler(filters.TEXT & ~filters.COMMAND, inv_tax_rate)],
+            INV_PAGE_SIZE:      [CallbackQueryHandler(inv_page_size_cb,   pattern="^ps_"),
+                                CallbackQueryHandler(inv_pdf_style_cb,  pattern="^pdfstyle_")],
+            INV_TAX_RATE:       [MessageHandler(filters.TEXT & ~filters.COMMAND, inv_tax_rate),
+                                CallbackQueryHandler(inv_pdf_style_cb,  pattern="^pdfstyle_")],
             INV_DISCOUNT:       [MessageHandler(filters.TEXT & ~filters.COMMAND, inv_discount)],
 
             ITEM_NAME:     [MessageHandler(filters.TEXT & ~filters.COMMAND, item_name)],
