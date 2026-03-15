@@ -1,6 +1,7 @@
 """
-PDF Generator — professional invoices & receipts.
-Supports 4 page sizes and 4 visual styles.
+PDF Generator v5 — ground-up redesign.
+Clean, modern, professional layout.
+4 themes, 4 page sizes.
 """
 
 import os
@@ -10,13 +11,10 @@ from reportlab.lib.pagesizes import A4, A5, LETTER, LEGAL
 from reportlab.lib import colors
 from reportlab.lib.units import mm
 from reportlab.lib.styles import ParagraphStyle
-from reportlab.platypus import (
-    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
-)
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable, Flowable
 from reportlab.pdfgen import canvas
 from reportlab.lib.enums import TA_LEFT, TA_RIGHT, TA_CENTER
 
-# ── Page sizes ────────────────────────────────────────────────────────────────
 PAGE_SIZES = {"A4": A4, "A5": A5, "Letter": LETTER, "Legal": LEGAL}
 PAGE_SIZE_LABELS = {
     "A4":     "A4 (210×297 mm)",
@@ -24,403 +22,458 @@ PAGE_SIZE_LABELS = {
     "Letter": "US Letter (8.5×11 in)",
     "Legal":  "US Legal (8.5×14 in)",
 }
-
-# ── PDF Styles ────────────────────────────────────────────────────────────────
 PDF_STYLES = {
-    "classic":    "Classic Blue",
-    "dark":       "Executive Dark",
-    "minimal":    "Clean Minimal",
-    "elegant":    "Elegant Green",
+    "classic": "Classic Blue",
+    "dark":    "Executive Dark",
+    "minimal": "Clean Minimal",
+    "elegant": "Elegant Green",
 }
-
 CURRENCIES = {
-    "USD": "$", "EUR": "€", "GBP": "£", "TRY": "₺",
-    "AED": "AED ", "SAR": "SAR ", "IQD": "IQD "
+    "USD":"$","EUR":"€","GBP":"£","TRY":"₺",
+    "AED":"AED ","SAR":"SAR ","IQD":"IQD "
 }
 
-# ── Colour themes ─────────────────────────────────────────────────────────────
-THEMES = {
-    "classic": {
-        "primary":   colors.HexColor("#1565C0"),
-        "secondary": colors.HexColor("#00897B"),
-        "header_bg": colors.HexColor("#0D1B2A"),
-        "light_bg":  colors.HexColor("#F5F7FA"),
-        "stripe":    colors.HexColor("#EEF2F7"),
-        "text":      colors.HexColor("#1A1A2E"),
-        "grey":      colors.HexColor("#78909C"),
-        "divider":   colors.HexColor("#CFD8DC"),
-        "total_bg":  colors.HexColor("#1565C0"),
-        "corner":    colors.HexColor("#E8EEF7"),
-    },
-    "dark": {
-        "primary":   colors.HexColor("#212121"),
-        "secondary": colors.HexColor("#B8860B"),
-        "header_bg": colors.HexColor("#1A1A1A"),
-        "light_bg":  colors.HexColor("#F8F8F8"),
-        "stripe":    colors.HexColor("#F0F0F0"),
-        "text":      colors.HexColor("#1A1A1A"),
-        "grey":      colors.HexColor("#757575"),
-        "divider":   colors.HexColor("#DDDDDD"),
-        "total_bg":  colors.HexColor("#212121"),
-        "corner":    colors.HexColor("#ECECEC"),
-    },
-    "minimal": {
-        "primary":   colors.HexColor("#333333"),
-        "secondary": colors.HexColor("#333333"),
-        "header_bg": colors.HexColor("#FFFFFF"),
-        "light_bg":  colors.HexColor("#FAFAFA"),
-        "stripe":    colors.HexColor("#F5F5F5"),
-        "text":      colors.HexColor("#222222"),
-        "grey":      colors.HexColor("#888888"),
-        "divider":   colors.HexColor("#E0E0E0"),
-        "total_bg":  colors.HexColor("#333333"),
-        "corner":    colors.HexColor("#F5F5F5"),
-    },
-    "elegant": {
-        "primary":   colors.HexColor("#2E7D32"),
-        "secondary": colors.HexColor("#1B5E20"),
-        "header_bg": colors.HexColor("#1B5E20"),
-        "light_bg":  colors.HexColor("#F1F8E9"),
-        "stripe":    colors.HexColor("#E8F5E9"),
-        "text":      colors.HexColor("#1A1A1A"),
-        "grey":      colors.HexColor("#6A6A6A"),
-        "divider":   colors.HexColor("#C8E6C9"),
-        "total_bg":  colors.HexColor("#2E7D32"),
-        "corner":    colors.HexColor("#E8F5E9"),
-    },
+# ── Themes ────────────────────────────────────────────────────────────────────
+T = {
+    "classic": dict(
+        bar=colors.HexColor("#1A237E"),
+        bar2=colors.HexColor("#283593"),
+        accent=colors.HexColor("#1565C0"),
+        badge=colors.HexColor("#1565C0"),
+        badge_text=colors.white,
+        num_text=colors.HexColor("#5C6BC0"),
+        total_bg=colors.HexColor("#1565C0"),
+        total_text=colors.white,
+        paid_bg=colors.HexColor("#1B5E20"),
+        paid_text=colors.white,
+        table_head=colors.HexColor("#1A237E"),
+        row_even=colors.HexColor("#EEF2FF"),
+        row_odd=colors.white,
+        divider=colors.HexColor("#C5CAE9"),
+        meta_bg=colors.HexColor("#E8EAF6"),
+        meta_alt=colors.HexColor("#F3F4FB"),
+        co_name=colors.HexColor("#1A237E"),
+        co_info=colors.HexColor("#5C6BC0"),
+        cl_name=colors.HexColor("#1A1A1A"),
+        cl_info=colors.HexColor("#757575"),
+        body=colors.HexColor("#212121"),
+        grey=colors.HexColor("#9E9E9E"),
+        notes_label=colors.HexColor("#1565C0"),
+        thanks=colors.HexColor("#1565C0"),
+    ),
+    "dark": dict(
+        bar=colors.HexColor("#111111"),
+        bar2=colors.HexColor("#222222"),
+        accent=colors.HexColor("#CFB53B"),
+        badge=colors.HexColor("#111111"),
+        badge_text=colors.HexColor("#CFB53B"),
+        num_text=colors.HexColor("#888888"),
+        total_bg=colors.HexColor("#111111"),
+        total_text=colors.white,
+        paid_bg=colors.HexColor("#1B5E20"),
+        paid_text=colors.white,
+        table_head=colors.HexColor("#222222"),
+        row_even=colors.HexColor("#F5F5F5"),
+        row_odd=colors.white,
+        divider=colors.HexColor("#DDDDDD"),
+        meta_bg=colors.HexColor("#F5F5F5"),
+        meta_alt=colors.HexColor("#EEEEEE"),
+        co_name=colors.HexColor("#111111"),
+        co_info=colors.HexColor("#555555"),
+        cl_name=colors.HexColor("#111111"),
+        cl_info=colors.HexColor("#757575"),
+        body=colors.HexColor("#111111"),
+        grey=colors.HexColor("#999999"),
+        notes_label=colors.HexColor("#111111"),
+        thanks=colors.HexColor("#CFB53B"),
+    ),
+    "minimal": dict(
+        bar=colors.HexColor("#F5F5F5"),
+        bar2=colors.HexColor("#E0E0E0"),
+        accent=colors.HexColor("#212121"),
+        badge=colors.HexColor("#212121"),
+        badge_text=colors.white,
+        num_text=colors.HexColor("#9E9E9E"),
+        total_bg=colors.HexColor("#212121"),
+        total_text=colors.white,
+        paid_bg=colors.HexColor("#212121"),
+        paid_text=colors.white,
+        table_head=colors.HexColor("#212121"),
+        row_even=colors.HexColor("#FAFAFA"),
+        row_odd=colors.white,
+        divider=colors.HexColor("#E0E0E0"),
+        meta_bg=colors.HexColor("#FAFAFA"),
+        meta_alt=colors.HexColor("#F5F5F5"),
+        co_name=colors.HexColor("#212121"),
+        co_info=colors.HexColor("#757575"),
+        cl_name=colors.HexColor("#212121"),
+        cl_info=colors.HexColor("#757575"),
+        body=colors.HexColor("#212121"),
+        grey=colors.HexColor("#9E9E9E"),
+        notes_label=colors.HexColor("#212121"),
+        thanks=colors.HexColor("#757575"),
+    ),
+    "elegant": dict(
+        bar=colors.HexColor("#1B5E20"),
+        bar2=colors.HexColor("#2E7D32"),
+        accent=colors.HexColor("#388E3C"),
+        badge=colors.HexColor("#1B5E20"),
+        badge_text=colors.white,
+        num_text=colors.HexColor("#66BB6A"),
+        total_bg=colors.HexColor("#1B5E20"),
+        total_text=colors.white,
+        paid_bg=colors.HexColor("#1B5E20"),
+        paid_text=colors.white,
+        table_head=colors.HexColor("#1B5E20"),
+        row_even=colors.HexColor("#F1F8E9"),
+        row_odd=colors.white,
+        divider=colors.HexColor("#C8E6C9"),
+        meta_bg=colors.HexColor("#F1F8E9"),
+        meta_alt=colors.HexColor("#E8F5E9"),
+        co_name=colors.HexColor("#1B5E20"),
+        co_info=colors.HexColor("#388E3C"),
+        cl_name=colors.HexColor("#1A1A1A"),
+        cl_info=colors.HexColor("#757575"),
+        body=colors.HexColor("#1A1A1A"),
+        grey=colors.HexColor("#9E9E9E"),
+        notes_label=colors.HexColor("#1B5E20"),
+        thanks=colors.HexColor("#2E7D32"),
+    ),
 }
+
+
+# ── Custom Flowables ──────────────────────────────────────────────────────────
+
+class PaidBadge(Flowable):
+    """A perfectly sized PAID badge drawn on canvas."""
+    def __init__(self, width, bg, text_color, font_size=18):
+        super().__init__()
+        self.width  = width
+        self.height = font_size * 2.2
+        self.bg     = bg
+        self.tc     = text_color
+        self.fs     = font_size
+
+    def draw(self):
+        c = self.canv
+        # Background
+        c.setFillColor(self.bg)
+        c.roundRect(0, 0, self.width, self.height, 2*mm, fill=1, stroke=0)
+        # Centered text
+        c.setFillColor(self.tc)
+        c.setFont("Helvetica-Bold", self.fs)
+        c.drawCentredString(self.width / 2, (self.height - self.fs * 0.72) / 2, "PAID")
+
+
+class TopBanner(Flowable):
+    """Full-width top banner with doc type badge + number."""
+    def __init__(self, page_w, page_h, left_m, right_m, top_m,
+                 inv_type, number, theme, style_key):
+        super().__init__()
+        self.pw       = page_w
+        self.ph       = page_h
+        self.lm       = left_m
+        self.rm       = right_m
+        self.tm       = top_m
+        self.inv_type = inv_type
+        self.number   = number
+        self.th       = theme
+        self.sk       = style_key
+        self.width    = page_w - left_m - right_m
+        self.height   = 0  # drawn on canvas, not in flow
+
+    def draw(self):
+        pass  # all drawing done in InvoiceCanvas
 
 
 class InvoiceCanvas(canvas.Canvas):
-    def __init__(self, *args, inv_type="Invoice", page_w=None, page_h=None,
-                 theme=None, style_key="classic", **kwargs):
+    def __init__(self, *args, inv=None, pw=None, ph=None,
+                 lm=20*mm, rm=20*mm, tm=20*mm, style_key="classic", **kwargs):
         super().__init__(*args, **kwargs)
-        self._inv_type  = inv_type
-        self._page_w    = page_w or A4[0]
-        self._page_h    = page_h or A4[1]
-        self._theme     = theme or THEMES["classic"]
-        self._style_key = style_key
-        self._saved_page_states = []
+        self._inv   = inv or {}
+        self._pw    = pw or A4[0]
+        self._ph    = ph or A4[1]
+        self._lm    = lm
+        self._rm    = rm
+        self._tm    = tm
+        self._sk    = style_key
+        self._th    = T.get(style_key, T["classic"])
+        self._saved = []
 
     def showPage(self):
-        self._saved_page_states.append(dict(self.__dict__))
+        self._saved.append(dict(self.__dict__))
         self._startPage()
 
     def save(self):
-        num_pages = len(self._saved_page_states)
-        for state in self._saved_page_states:
+        total = len(self._saved)
+        for state in self._saved:
             self.__dict__.update(state)
-            self._draw_page_decorations(num_pages)
+            self._draw(total)
             super().showPage()
         super().save()
 
-    def _draw_page_decorations(self, total_pages):
-        W, H  = self._page_w, self._page_h
-        T     = self._theme
-        style = self._style_key
+    def _draw(self, total):
+        W, H   = self._pw, self._ph
+        th     = self._th
+        sk     = self._sk
+        lm, rm = self._lm, self._rm
+        inv    = self._inv
+        doc_type = inv.get("type", "Invoice").upper()
+        number   = inv.get("number", "")
 
-        if style == "minimal":
-            # Clean minimal: just a thin top line and bottom line
-            self.setStrokeColor(T["primary"])
-            self.setLineWidth(2)
-            self.line(0, H, W, H - 1)
-            self.setLineWidth(1)
-            self.line(20*mm, H - 6*mm, W - 20*mm, H - 6*mm)
-        elif style == "dark":
-            # Full dark header bar
-            self.setFillColor(T["header_bg"])
-            self.rect(0, H - 10*mm, W, 10*mm, fill=1, stroke=0)
-            self.setFillColor(T["secondary"])
-            self.rect(0, H - 11.5*mm, W, 1.5*mm, fill=1, stroke=0)
-            # Side accent strip
-            self.setFillColor(colors.HexColor("#2A2A2A"))
-            self.rect(0, 0, 4*mm, H, fill=1, stroke=0)
-        elif style == "elegant":
-            # Green header bar
-            self.setFillColor(T["header_bg"])
-            self.rect(0, H - 9*mm, W, 9*mm, fill=1, stroke=0)
-            self.setFillColor(T["secondary"])
-            self.rect(0, H - 10.5*mm, W, 1.5*mm, fill=1, stroke=0)
-            # Bottom green bar
-            self.setFillColor(T["primary"])
-            self.rect(0, 0, W, 5*mm, fill=1, stroke=0)
-        else:  # classic
-            self.setFillColor(T["primary"])
-            self.rect(0, H - 8*mm, W, 8*mm, fill=1, stroke=0)
-            self.setFillColor(T["secondary"])
-            self.rect(0, H - 10*mm, W, 2*mm, fill=1, stroke=0)
-            # Corner decoration
-            self.saveState()
-            self.setFillColor(T["corner"])
-            path = self.beginPath()
-            path.moveTo(W * 0.72, H)
-            path.lineTo(W, H)
-            path.lineTo(W, H * 0.72)
-            path.close()
-            self.drawPath(path, fill=1, stroke=0)
-            self.restoreState()
+        # ── Top banner ────────────────────────────────────────────────────────
+        banner_h = 22 * mm
+        self.setFillColor(th["bar"])
+        self.rect(0, H - banner_h, W, banner_h, fill=1, stroke=0)
 
-        # Footer line
-        self.setStrokeColor(T["divider"])
-        self.setLineWidth(0.5)
-        self.line(20*mm, 14*mm, W - 20*mm, 14*mm)
-        # Footer: left = blank / confidential, right = page number
-        self.setFillColor(T["grey"])
-        self.setFont("Helvetica", 7.5)
-        self.drawString(20*mm, 10*mm, "Confidential")
-        self.drawRightString(W - 20*mm, 10*mm, f"Page {self._pageNumber} of {total_pages}")
+        # Accent strip at bottom of banner
+        self.setFillColor(th["accent"])
+        self.setLineWidth(0)
+        self.rect(0, H - banner_h - 1.5*mm, W, 1.5*mm, fill=1, stroke=0)
+
+        # ── Doc type badge inside banner ──────────────────────────────────────
+        badge_fs   = 15
+        badge_pad  = 4 * mm
+        badge_text = doc_type
+        self.setFont("Helvetica-Bold", badge_fs)
+        badge_tw = self.stringWidth(badge_text, "Helvetica-Bold", badge_fs)
+        badge_w  = badge_tw + badge_pad * 2
+        badge_h  = 10 * mm
+        badge_x  = W - rm - badge_w
+        badge_y  = H - banner_h + (banner_h - badge_h) / 2
+
+        self.setFillColor(th["badge"])
+        self.setStrokeColor(th["badge_text"])
+        self.setLineWidth(1)
+        self.roundRect(badge_x, badge_y, badge_w, badge_h, 1.5*mm, fill=1, stroke=1)
+        self.setFillColor(th["badge_text"])
+        self.drawCentredString(badge_x + badge_w/2,
+                               badge_y + (badge_h - badge_fs*0.72)/2,
+                               badge_text)
+
+        # ── Number below banner ───────────────────────────────────────────────
+        self.setFillColor(th["num_text"])
+        self.setFont("Helvetica", 8)
+        num_str = f"# {number}"
+        self.drawRightString(W - rm, H - banner_h - 5.5*mm, num_str)
+
+        # ── Footer ────────────────────────────────────────────────────────────
+        self.setStrokeColor(th["divider"])
+        self.setLineWidth(0.4)
+        self.line(lm, 13*mm, W - rm, 13*mm)
+        self.setFillColor(th["grey"])
+        self.setFont("Helvetica", 7)
+        self.drawRightString(W - rm, 9*mm, f"Page {self._pageNumber} of {total}")
 
 
-def _sym(inv):
-    return CURRENCIES.get(inv.get("currency", "USD"), "$")
+# ── Helpers ───────────────────────────────────────────────────────────────────
 
-def _fmt(amount, inv):
-    return f"{_sym(inv)}{amount:,.2f}"
-
+def _sym(inv): return CURRENCIES.get(inv.get("currency","USD"),"$")
+def _fmt(n,inv): return f"{_sym(inv)}{n:,.2f}"
 def _calc(inv):
-    items    = inv.get("items", [])
-    subtotal = sum(i["qty"] * i["price"] for i in items)
-    disc_pct = inv.get("discount", 0)
-    tax_pct  = inv.get("tax_rate", 0)
-    disc_amt = subtotal * disc_pct / 100
-    taxable  = subtotal - disc_amt
-    tax_amt  = taxable  * tax_pct  / 100
-    total    = taxable  + tax_amt
-    return subtotal, disc_pct, disc_amt, tax_pct, tax_amt, total
+    items    = inv.get("items",[])
+    sub      = sum(i["qty"]*i["price"] for i in items)
+    dp, tp   = inv.get("discount",0), inv.get("tax_rate",0)
+    da       = sub*dp/100
+    tax      = (sub-da)*tp/100
+    return sub, dp, da, tp, tax, sub-da+tax
 
-def _styles(scale=1.0, T=None):
-    if T is None:
-        T = THEMES["classic"]
-    def s(base): return max(6, int(base * scale))
+def _st(name, **kw):
+    return ParagraphStyle(name, **kw)
+
+def _styles(sc, th):
+    def s(b): return max(6, int(b*sc))
+    W = colors.white
     return {
-        "doc_type":          ParagraphStyle("doc_type",          fontName="Helvetica-Bold",        fontSize=s(26), textColor=colors.white,  alignment=TA_RIGHT),
-        "doc_number":        ParagraphStyle("doc_number",        fontName="Helvetica",             fontSize=s(11), textColor=colors.HexColor("#B0BEC5"), alignment=TA_RIGHT),
-        "company_name":      ParagraphStyle("company_name",      fontName="Helvetica-Bold",        fontSize=s(14), textColor=T["header_bg"], spaceAfter=2),
-        "company_info":      ParagraphStyle("company_info",      fontName="Helvetica",             fontSize=s(8),  textColor=T["grey"],      leading=s(13)),
-        "section_label":     ParagraphStyle("section_label",     fontName="Helvetica-Bold",        fontSize=s(7),  textColor=T["grey"],      spaceAfter=2, letterSpacing=1.0),
-        "client_name":       ParagraphStyle("client_name",       fontName="Helvetica-Bold",        fontSize=s(12), textColor=T["text"],      spaceAfter=3),
-        "client_info":       ParagraphStyle("client_info",       fontName="Helvetica",             fontSize=s(8),  textColor=T["grey"],      leading=s(13)),
-        "meta_label":        ParagraphStyle("meta_label",        fontName="Helvetica-Bold",        fontSize=s(7),  textColor=T["grey"]),
-        "meta_value":        ParagraphStyle("meta_value",        fontName="Helvetica",             fontSize=s(8),  textColor=T["text"]),
-        "table_header":      ParagraphStyle("table_header",      fontName="Helvetica-Bold",        fontSize=s(8),  textColor=colors.white),
-        "table_cell":        ParagraphStyle("table_cell",        fontName="Helvetica",             fontSize=s(8),  textColor=T["text"],      leading=s(12)),
-        "table_cell_right":  ParagraphStyle("table_cell_right",  fontName="Helvetica",             fontSize=s(8),  textColor=T["text"],      alignment=TA_RIGHT),
-        "total_label":       ParagraphStyle("total_label",       fontName="Helvetica-Bold",        fontSize=s(9),  textColor=T["text"],      alignment=TA_RIGHT),
-        "total_value":       ParagraphStyle("total_value",       fontName="Helvetica",             fontSize=s(9),  textColor=T["text"],      alignment=TA_RIGHT),
-        "grand_label":       ParagraphStyle("grand_label",       fontName="Helvetica-Bold",        fontSize=s(12), textColor=colors.white,   alignment=TA_RIGHT),
-        "grand_value":       ParagraphStyle("grand_value",       fontName="Helvetica-Bold",        fontSize=s(13), textColor=colors.white,   alignment=TA_RIGHT),
-        "notes_label":       ParagraphStyle("notes_label",       fontName="Helvetica-Bold",        fontSize=s(8),  textColor=T["primary"],   spaceAfter=3),
-        "notes_text":        ParagraphStyle("notes_text",        fontName="Helvetica",             fontSize=s(8),  textColor=T["grey"],      leading=s(13)),
-        "paid_stamp":        ParagraphStyle("paid_stamp",        fontName="Helvetica-Bold",        fontSize=s(30), textColor=colors.HexColor("#C8E6C9"), alignment=TA_CENTER),
-        "thank_you":         ParagraphStyle("thank_you",         fontName="Helvetica-BoldOblique", fontSize=s(9),  textColor=T["secondary"], alignment=TA_CENTER),
-        "minimal_company":   ParagraphStyle("minimal_company",   fontName="Helvetica-Bold",        fontSize=s(16), textColor=T["text"],      spaceAfter=2),
+        "co_name":   _st("co_name",   fontName="Helvetica-Bold",        fontSize=s(13), textColor=th["co_name"],     spaceAfter=1),
+        "co_info":   _st("co_info",   fontName="Helvetica",             fontSize=s(8),  textColor=th["co_info"],     leading=s(12)),
+        "sec":       _st("sec",       fontName="Helvetica-Bold",        fontSize=s(7),  textColor=th["grey"],        spaceAfter=2, letterSpacing=0.8),
+        "cl_name":   _st("cl_name",   fontName="Helvetica-Bold",        fontSize=s(11), textColor=th["cl_name"],     spaceAfter=2),
+        "cl_info":   _st("cl_info",   fontName="Helvetica",             fontSize=s(8),  textColor=th["cl_info"],     leading=s(12)),
+        "ml":        _st("ml",        fontName="Helvetica-Bold",        fontSize=s(7),  textColor=th["grey"]),
+        "mv":        _st("mv",        fontName="Helvetica",             fontSize=s(8),  textColor=th["body"]),
+        "th":        _st("th",        fontName="Helvetica-Bold",        fontSize=s(8),  textColor=W),
+        "td":        _st("td",        fontName="Helvetica",             fontSize=s(8),  textColor=th["body"],        leading=s(11)),
+        "td_r":      _st("td_r",      fontName="Helvetica",             fontSize=s(8),  textColor=th["body"],        alignment=TA_RIGHT),
+        "tl":        _st("tl",        fontName="Helvetica-Bold",        fontSize=s(9),  textColor=th["body"],        alignment=TA_RIGHT),
+        "tv":        _st("tv",        fontName="Helvetica",             fontSize=s(9),  textColor=th["body"],        alignment=TA_RIGHT),
+        "gl":        _st("gl",        fontName="Helvetica-Bold",        fontSize=s(11), textColor=W,                 alignment=TA_RIGHT),
+        "gv":        _st("gv",        fontName="Helvetica-Bold",        fontSize=s(12), textColor=W,                 alignment=TA_RIGHT),
+        "nl":        _st("nl",        fontName="Helvetica-Bold",        fontSize=s(8),  textColor=th["notes_label"], spaceAfter=2),
+        "nt":        _st("nt",        fontName="Helvetica",             fontSize=s(8),  textColor=th["grey"],        leading=s(12)),
+        "ty":        _st("ty",        fontName="Helvetica-BoldOblique", fontSize=s(9),  textColor=th["thanks"],      alignment=TA_CENTER),
     }
 
 
+# ── Main ──────────────────────────────────────────────────────────────────────
+
 def generate_invoice_pdf(inv: dict) -> str:
-    page_key  = inv.get("page_size", "A4")
-    style_key = inv.get("pdf_style", "classic")
-    page_size = PAGE_SIZES.get(page_key, A4)
-    W, H      = page_size
-    T         = THEMES.get(style_key, THEMES["classic"])
-    inv_type  = inv.get("type", "Invoice")
-    company   = inv.get("company", {})
-    sym       = _sym(inv)
-    scale     = 0.78 if page_key == "A5" else 1.0
-    S         = _styles(scale, T)
-    mg        = 18*mm if page_key == "A5" else 20*mm
-    tm        = 26*mm if page_key == "A5" else 28*mm
+    pk   = inv.get("page_size","A4")
+    sk   = inv.get("pdf_style","classic")
+    ps   = PAGE_SIZES.get(pk, A4)
+    PW,PH= ps
+    th   = T.get(sk, T["classic"])
+    itype= inv.get("type","Invoice")
+    comp = inv.get("company",{})
+    sym  = _sym(inv)
+    sc   = 0.78 if pk=="A5" else 1.0
+    S    = _styles(sc, th)
+
+    lm   = 16*mm if pk=="A5" else 18*mm
+    rm   = lm
+    # top margin: banner(22mm) + accent(1.5mm) + number_row(6mm) + gap(6mm)
+    tm   = 38*mm
+    bm   = 18*mm
 
     tmp  = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
-    path = tmp.name
-    tmp.close()
+    path = tmp.name; tmp.close()
 
-    doc   = SimpleDocTemplate(path, pagesize=page_size,
-                              leftMargin=mg, rightMargin=mg,
-                              topMargin=tm, bottomMargin=20*mm)
-    dw    = doc.width
-    story = []
+    doc  = SimpleDocTemplate(path, pagesize=ps,
+                             leftMargin=lm, rightMargin=rm,
+                             topMargin=tm, bottomMargin=bm)
+    dw   = doc.width
+    story= []
 
-    def ph(text, sk):
-        return Paragraph(str(text), S[sk])
+    def ph(txt, st): return Paragraph(str(txt), S[st])
 
-    # ── HEADER ────────────────────────────────────────────────────────────────
-    if style_key == "minimal":
-        # Minimal: company name left, doc type right in dark text on white
-        company_block = [
-            ph(company.get("name","Your Company"), "minimal_company"),
-        ]
-        for field in ("address","email","phone"):
-            v = company.get(field,"")
-            if v: company_block.append(ph(v.replace("\n","<br/>"), "company_info"))
-        if company.get("website"): company_block.append(ph(company["website"], "company_info"))
-        if company.get("tax_id"):  company_block.append(ph(f"Tax ID: {company['tax_id']}", "company_info"))
+    # ── Company + meta block ──────────────────────────────────────────────────
+    co_block = [ph(comp.get("name","Your Company"),"co_name")]
+    for f in ("address","email","phone"):
+        v = comp.get(f,"")
+        if v: co_block.append(ph(v.replace("\n","<br/>"),"co_info"))
+    if comp.get("website"): co_block.append(ph(comp["website"],"co_info"))
+    if comp.get("tax_id"):  co_block.append(ph(f"Tax ID: {comp['tax_id']}","co_info"))
 
-        doc_block_style = ParagraphStyle("dt_min", fontName="Helvetica-Bold",
-                                         fontSize=int(26*scale), textColor=T["primary"], alignment=TA_RIGHT)
-        num_style = ParagraphStyle("dn_min", fontName="Helvetica",
-                                   fontSize=int(11*scale), textColor=T["grey"], alignment=TA_RIGHT)
-        doc_block = [Paragraph(inv_type.upper(), doc_block_style),
-                     Paragraph(f"#{inv.get('number','0001')}", num_style)]
-        hdr = Table([[company_block, doc_block]], colWidths=[dw*0.55, dw*0.45])
-        hdr.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),
-                                 ("LINEBELOW",(0,0),(-1,0),1.5,T["primary"])]))
-    else:
-        # Coloured header block
-        company_block = [ph(company.get("name","Your Company"), "company_name")]
-        for field in ("address","email","phone"):
-            v = company.get(field,"")
-            if v: company_block.append(ph(v.replace("\n","<br/>"), "company_info"))
-        if company.get("website"): company_block.append(ph(company["website"], "company_info"))
-        if company.get("tax_id"):  company_block.append(ph(f"Tax ID: {company['tax_id']}", "company_info"))
-
-        doc_block = [ph(inv_type.upper(),"doc_type"), ph(f"#{inv.get('number','0001')}","doc_number")]
-        hdr = Table([[company_block, doc_block]], colWidths=[dw*0.55, dw*0.45])
-        hdr.setStyle(TableStyle([
-            ("BACKGROUND",    (1,0),(1,0), T["header_bg"]),
-            ("VALIGN",        (0,0),(-1,-1),"TOP"),
-            ("ALIGN",         (1,0),(1,0),"RIGHT"),
-            ("TOPPADDING",    (1,0),(1,0),10),
-            ("BOTTOMPADDING", (1,0),(1,0),10),
-            ("RIGHTPADDING",  (1,0),(1,0),12),
-            ("LEFTPADDING",   (1,0),(1,0),8),
-        ]))
-
-    story += [hdr, Spacer(1, 5*mm)]
-
-    # ── BILL TO + META ────────────────────────────────────────────────────────
-    client_block = [ph("BILL TO","section_label"), ph(inv.get("client_name","—"),"client_name")]
-    for field in ("client_address","client_email","client_phone"):
-        v = inv.get(field,"")
-        if v: client_block.append(ph(v.replace("\n","<br/>"), "client_info"))
-
-    meta_rows = [
-        [ph("DATE ISSUED","meta_label"), ph(inv.get("date","—"),      "meta_value")],
-        [ph("DUE DATE",   "meta_label"), ph(inv.get("due_date","—"),  "meta_value")],
-        [ph("CURRENCY",   "meta_label"), ph(inv.get("currency","USD"),"meta_value")],
+    meta_data = [
+        [ph("ISSUED",   "ml"), ph(inv.get("date","—"),      "mv")],
+        [ph("DUE",      "ml"), ph(inv.get("due_date","—"),  "mv")],
+        [ph("CURRENCY", "ml"), ph(inv.get("currency","USD"),"mv")],
     ]
-    if company.get("tax_id"):
-        meta_rows.append([ph("TAX ID","meta_label"), ph(company["tax_id"],"meta_value")])
+    if comp.get("tax_id"):
+        meta_data.append([ph("TAX ID","ml"), ph(comp["tax_id"],"mv")])
 
-    meta_tbl = Table(meta_rows, colWidths=[26*mm*scale, 38*mm*scale])
+    meta_tbl = Table(meta_data, colWidths=[18*mm*sc, 36*mm*sc])
     meta_tbl.setStyle(TableStyle([
-        ("ROWBACKGROUNDS",(0,0),(-1,-1),[T["light_bg"], T["stripe"]]),
-        ("TOPPADDING",    (0,0),(-1,-1),3),
-        ("BOTTOMPADDING", (0,0),(-1,-1),3),
-        ("LEFTPADDING",   (0,0),(-1,-1),5),
-        ("RIGHTPADDING",  (0,0),(-1,-1),5),
+        ("ROWBACKGROUNDS",(0,0),(-1,-1),[th["meta_bg"],th["meta_alt"]]),
+        ("TOPPADDING",    (0,0),(-1,-1), 3),
+        ("BOTTOMPADDING", (0,0),(-1,-1), 3),
+        ("LEFTPADDING",   (0,0),(-1,-1), 4),
+        ("RIGHTPADDING",  (0,0),(-1,-1), 4),
+        ("LINEBELOW",     (0,0),(-1,-1), 0.3, th["divider"]),
     ]))
 
-    info = Table([[client_block,"",meta_tbl]], colWidths=[dw*0.44, dw*0.04, dw*0.52])
-    info.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("ALIGN",(2,0),(2,0),"RIGHT")]))
-    story += [info, Spacer(1, 6*mm)]
+    top_row = Table([[co_block, meta_tbl]], colWidths=[dw*0.55, dw*0.45])
+    top_row.setStyle(TableStyle([
+        ("VALIGN",(0,0),(-1,-1),"TOP"),
+        ("ALIGN", (1,0),(1,0),  "RIGHT"),
+    ]))
+    story += [top_row, Spacer(1, 6*mm)]
 
-    # ── LINE ITEMS ────────────────────────────────────────────────────────────
-    cn=dw*0.04; cd=dw*0.37; cu=dw*0.09; cq=dw*0.10; cp=dw*0.18; ct=dw*0.20
-    headers = [ph("#","table_header"), ph("DESCRIPTION","table_header"),
-               ph("UNIT","table_header"), ph("QTY","table_header"),
-               ph("UNIT PRICE","table_header"), ph("AMOUNT","table_header")]
-    rows = [headers]
-    for idx, item in enumerate(inv.get("items",[]), 1):
-        lt = item["qty"] * item["price"]
+    # ── Divider ───────────────────────────────────────────────────────────────
+    story.append(HRFlowable(width="100%", thickness=0.5, color=th["divider"]))
+    story.append(Spacer(1, 5*mm))
+
+    # ── Bill To + Date meta ───────────────────────────────────────────────────
+    cl_block = [ph("BILL TO","sec"), ph(inv.get("client_name","—"),"cl_name")]
+    for f in ("client_address","client_email","client_phone"):
+        v = inv.get(f,"")
+        if v: cl_block.append(ph(v.replace("\n","<br/>"),"cl_info"))
+
+    story.append(Table([[cl_block]], colWidths=[dw]))
+    story.append(Spacer(1, 6*mm))
+
+    # ── Line items ────────────────────────────────────────────────────────────
+    cw = [dw*0.04, dw*0.36, dw*0.09, dw*0.10, dw*0.19, dw*0.20]
+    hdr = [ph("#","th"),ph("DESCRIPTION","th"),ph("UNIT","th"),
+           ph("QTY","th"),ph("UNIT PRICE","th"),ph("AMOUNT","th")]
+    rows = [hdr]
+    for i, item in enumerate(inv.get("items",[]), 1):
+        lt = item["qty"]*item["price"]
         rows.append([
-            ph(str(idx),                    "table_cell"),
-            ph(item.get("name",""),         "table_cell"),
-            ph(item.get("unit","pc"),       "table_cell"),
-            ph(f'{item["qty"]:g}',          "table_cell_right"),
-            ph(f'{sym}{item["price"]:,.2f}',"table_cell_right"),
-            ph(f'{sym}{lt:,.2f}',           "table_cell_right"),
+            ph(str(i),                    "td"),
+            ph(item.get("name",""),       "td"),
+            ph(item.get("unit","pc"),     "td"),
+            ph(f'{item["qty"]:g}',        "td_r"),
+            ph(f'{sym}{item["price"]:,.2f}',"td_r"),
+            ph(f'{sym}{lt:,.2f}',         "td_r"),
         ])
 
-    stripe = [("BACKGROUND",(0,i),(-1,i), T["light_bg"] if i%2==0 else colors.white)
-              for i in range(1,len(rows))]
-    pad = 6 if page_key != "A5" else 4
+    stripe = [("BACKGROUND",(0,r),(-1,r), th["row_even"] if r%2==1 else th["row_odd"])
+              for r in range(1,len(rows))]
+    pad = 5 if pk!="A5" else 3
 
-    items_tbl = Table(rows, colWidths=[cn,cd,cu,cq,cp,ct], repeatRows=1)
-    items_tbl.setStyle(TableStyle([
-        ("BACKGROUND",    (0,0),(-1,0),  T["header_bg"]),
+    it = Table(rows, colWidths=cw, repeatRows=1)
+    it.setStyle(TableStyle([
+        ("BACKGROUND",    (0,0),(-1,0),  th["table_head"]),
         ("FONTNAME",      (0,0),(-1,0),  "Helvetica-Bold"),
-        ("FONTSIZE",      (0,0),(-1,0),  8*scale),
-        ("TOPPADDING",    (0,0),(-1,0),  pad+2),
-        ("BOTTOMPADDING", (0,0),(-1,0),  pad+2),
-        ("ALIGN",         (3,0),(-1,0),  "RIGHT"),
-        ("ALIGN",         (3,1),(-1,-1), "RIGHT"),
+        ("FONTSIZE",      (0,0),(-1,0),  8*sc),
+        ("TOPPADDING",    (0,0),(-1,0),  pad+2),("BOTTOMPADDING",(0,0),(-1,0),pad+2),
+        ("ALIGN",         (3,0),(-1,-1), "RIGHT"),
         ("FONTNAME",      (0,1),(-1,-1), "Helvetica"),
-        ("FONTSIZE",      (0,1),(-1,-1), 8*scale),
-        ("TOPPADDING",    (0,1),(-1,-1), pad),
-        ("BOTTOMPADDING", (0,1),(-1,-1), pad),
-        ("LEFTPADDING",   (0,0),(-1,-1), 6),
-        ("RIGHTPADDING",  (0,0),(-1,-1), 6),
-        ("LINEBELOW",     (0,0),(-1,0),  0.5, T["secondary"]),
-        ("LINEBELOW",     (0,1),(-1,-1), 0.3, T["divider"]),
+        ("FONTSIZE",      (0,1),(-1,-1), 8*sc),
+        ("TOPPADDING",    (0,1),(-1,-1), pad),("BOTTOMPADDING",(0,1),(-1,-1),pad),
+        ("LEFTPADDING",   (0,0),(-1,-1), 5),("RIGHTPADDING",(0,0),(-1,-1),5),
+        ("LINEBELOW",     (0,0),(-1,0),  1, th["accent"]),
+        ("LINEBELOW",     (0,1),(-1,-1), 0.3, th["divider"]),
         ("VALIGN",        (0,0),(-1,-1), "MIDDLE"),
         *stripe,
     ]))
-    story += [items_tbl, Spacer(1, 4*mm)]
+    story += [it, Spacer(1,5*mm)]
 
-    # ── TOTALS ────────────────────────────────────────────────────────────────
-    subtotal, disc_pct, disc_amt, tax_pct, tax_amt, total = _calc(inv)
+    # ── Totals ────────────────────────────────────────────────────────────────
+    sub, dp, da, tp, tax, total = _calc(inv)
 
-    tot_rows = [[ph("Subtotal","total_label"), ph(_fmt(subtotal,inv),"total_value")]]
-    if disc_pct:
-        tot_rows.append([ph(f"Discount ({disc_pct:g}%)","total_label"),
-                         ph(f"- {_fmt(disc_amt,inv)}","total_value")])
-    if tax_pct:
-        tot_rows.append([ph(f"Tax ({tax_pct:g}%)","total_label"),
-                         ph(f"+ {_fmt(tax_amt,inv)}","total_value")])
+    tot = [[ph("Subtotal","tl"),ph(_fmt(sub,inv),"tv")]]
+    if dp: tot.append([ph(f"Discount ({dp:g}%)","tl"),ph(f"- {_fmt(da,inv)}","tv")])
+    if tp: tot.append([ph(f"Tax ({tp:g}%)","tl"),    ph(f"+ {_fmt(tax,inv)}","tv")])
 
-    tot_tbl = Table(tot_rows, colWidths=[dw*0.65, dw*0.35])
-    tot_tbl.setStyle(TableStyle([
+    tt = Table(tot, colWidths=[dw*0.68, dw*0.32])
+    tt.setStyle(TableStyle([
         ("ALIGN",(0,0),(-1,-1),"RIGHT"),
-        ("TOPPADDING",(0,0),(-1,-1),3),
-        ("BOTTOMPADDING",(0,0),(-1,-1),3),
-        ("LINEBELOW",(0,-1),(-1,-1),0.5,T["divider"]),
+        ("TOPPADDING",(0,0),(-1,-1),3),("BOTTOMPADDING",(0,0),(-1,-1),3),
+        ("LINEBELOW",(0,-1),(-1,-1),0.5,th["divider"]),
     ]))
-    story += [tot_tbl, Spacer(1, 2*mm)]
+    story += [tt, Spacer(1,2*mm)]
 
-    grand = Table([[ph(f"TOTAL {inv.get('currency','USD')}","grand_label"),
-                    ph(_fmt(total,inv),"grand_value")]],
-                  colWidths=[dw*0.65, dw*0.35])
-    grand.setStyle(TableStyle([
-        ("BACKGROUND",(0,0),(-1,0), T["total_bg"]),
+    gt = Table(
+        [[ph(f"TOTAL  {inv.get('currency','USD')}","gl"), ph(_fmt(total,inv),"gv")]],
+        colWidths=[dw*0.60, dw*0.40]
+    )
+    gt.setStyle(TableStyle([
+        ("BACKGROUND",(0,0),(-1,0),th["total_bg"]),
         ("ALIGN",(0,0),(-1,-1),"RIGHT"),
-        ("TOPPADDING",(0,0),(-1,-1),9),
-        ("BOTTOMPADDING",(0,0),(-1,-1),9),
-        ("LEFTPADDING",(0,0),(-1,-1),12),
-        ("RIGHTPADDING",(0,0),(-1,-1),12),
+        ("TOPPADDING",(0,0),(-1,-1),9),("BOTTOMPADDING",(0,0),(-1,-1),9),
+        ("LEFTPADDING",(0,0),(-1,-1),10),("RIGHTPADDING",(0,0),(-1,-1),10),
+        ("ROUNDEDCORNERS",[3]),
     ]))
-    story += [grand, Spacer(1, 5*mm)]
+    story += [gt, Spacer(1,5*mm)]
 
-    # PAID stamp for receipts
-    if inv_type == "Receipt":
-        paid_bg = colors.HexColor("#2E7D32")
-        paid = Table([[ph("PAID","paid_stamp")]], colWidths=[dw])
-        paid.setStyle(TableStyle([
-            ("BACKGROUND",(0,0),(0,0), paid_bg),
-            ("TOPPADDING",(0,0),(0,0),5),
-            ("BOTTOMPADDING",(0,0),(0,0),5),
-        ]))
-        story += [paid, Spacer(1, 4*mm)]
+    # ── PAID badge ────────────────────────────────────────────────────────────
+    if itype == "Receipt":
+        story.append(PaidBadge(dw, th["paid_bg"], th["paid_text"], font_size=int(18*sc)))
+        story.append(Spacer(1,5*mm))
 
-    # ── NOTES ─────────────────────────────────────────────────────────────────
+    # ── Notes ─────────────────────────────────────────────────────────────────
     notes = inv.get("notes","")
     if notes:
-        story.append(HRFlowable(width="100%", thickness=0.5, color=T["divider"]))
-        story.append(Spacer(1, 3*mm))
-        story.append(ph("NOTES & PAYMENT TERMS","notes_label"))
-        story.append(ph(notes.replace("\n","<br/>"),"notes_text"))
-        story.append(Spacer(1, 4*mm))
+        story += [
+            HRFlowable(width="100%", thickness=0.4, color=th["divider"]),
+            Spacer(1,3*mm),
+            ph("NOTES & PAYMENT TERMS","nl"),
+            ph(notes.replace("\n","<br/>"),"nt"),
+            Spacer(1,4*mm),
+        ]
 
-    # ── THANK YOU ─────────────────────────────────────────────────────────────
-    story.append(HRFlowable(width="100%", thickness=0.5, color=T["divider"]))
-    story.append(Spacer(1, 4*mm))
-    thank = "Thank you for your business!" if inv_type=="Invoice" else "Thank you for your payment!"
-    story.append(ph(thank,"thank_you"))
+    # ── Thank you ─────────────────────────────────────────────────────────────
+    story += [
+        HRFlowable(width="100%", thickness=0.4, color=th["divider"]),
+        Spacer(1,4*mm),
+        ph("Thank you for your business!" if itype=="Invoice" else "Thank you for your payment!","ty"),
+    ]
 
-    # ── BUILD ──────────────────────────────────────────────────────────────────
     def make_canvas(filename, **kwargs):
-        return InvoiceCanvas(filename, inv_type=inv_type,
-                             page_w=W, page_h=H, theme=T, style_key=style_key, **kwargs)
+        return InvoiceCanvas(filename, inv=inv, pw=PW, ph=PH,
+                             lm=lm, rm=rm, tm=tm, style_key=sk, **kwargs)
 
     doc.build(story, canvasmaker=make_canvas)
     return path
